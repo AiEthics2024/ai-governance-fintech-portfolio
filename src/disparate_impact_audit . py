@@ -1,0 +1,70 @@
+"""
+Module: Disparate Impact & Fairness Audit
+Author: Michael Alexander Peter
+Description: Evaluates automated credit scoring or lending models against 
+             regulatory disparate impact thresholds (Four-Fifths Rule).
+"""
+
+import pandas as pd
+
+def calculate_disparate_impact(df, protected_col, target_col, privileged_group, unprivileged_group):
+    """
+    Calculates the disparate impact ratio between an unprivileged group and a privileged group.
+    
+    Parameters:
+    - df (pd.DataFrame): The dataset containing predictions and protected attributes.
+    - protected_col (str): The column name representing the protected demographic group.
+    - target_col (str): The column name for positive model outcomes (e.g., 1 for Loan Approved, 0 for Denied).
+    - privileged_group: The value in protected_col representing the privileged class.
+    - unprivileged_group: The value in protected_col representing the unprivileged class.
+    
+    Returns:
+    - dict: Selection rates for both groups and the calculated disparate impact ratio.
+    """
+    # Filter groups
+    priv_df = df[df[protected_col] == privileged_group]
+    unpriv_df = df[df[protected_col] == unprivileged_group]
+    
+    # Calculate selection rates (favorable outcome rate)
+    priv_selection_rate = priv_df[target_col].mean()
+    unpriv_selection_rate = unpriv_df[target_col].mean()
+    
+    # Avoid division by zero
+    if priv_selection_rate == 0:
+        di_ratio = 0.0
+    else:
+        di_ratio = unpriv_selection_rate / priv_selection_rate
+        
+    results = {
+        "Privileged Selection Rate": round(priv_selection_rate, 4),
+        "Unprivileged Selection Rate": round(unpriv_selection_rate, 4),
+        "Disparate Impact Ratio": round(di_ratio, 4),
+        "Passes 80% Rule (>= 0.80)": di_ratio >= 0.80
+    }
+    
+    return results
+
+# --- Example Usage ---
+if __name__ == "__main__":
+    # Mock credit scoring / loan decision dataset
+    data = {
+        'applicant_id': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        'demographic_group': ['Group_A', 'Group_A', 'Group_A', 'Group_A', 'Group_A', 
+                              'Group_B', 'Group_B', 'Group_B', 'Group_B', 'Group_B'],
+        'ai_credit_decision': [1, 1, 1, 0, 1, 0, 1, 0, 0, 0] # 1 = Approved, 0 = Denied
+    }
+    
+    df_sample = pd.DataFrame(data)
+    
+    # Group_A = Privileged, Group_B = Unprivileged
+    audit_results = calculate_disparate_impact(
+        df=df_sample,
+        protected_col='demographic_group',
+        target_col='ai_credit_decision',
+        privileged_group='Group_A',
+        unprivileged_group='Group_B'
+    )
+    
+    print("--- AI Credit Scoring Disparate Impact Audit Report ---")
+    for metric, value in audit_results.items():
+        print(f"{metric}: {value}")
